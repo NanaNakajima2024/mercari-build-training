@@ -27,10 +27,13 @@ func root(c echo.Context) error {
 func addItem(c echo.Context) error {
 	// Get form data
 	name := c.FormValue("name")
+	category := c.FormValue("category")
 	c.Logger().Infof("Receive item: %s", name)
 
-	message := fmt.Sprintf("item received: %s", name)
+	message := fmt.Sprintf("item received: %s", category)
 	res := Response{Message: message}
+	//newItem := Item{Name: "New Item", Category: "New Category"}
+	//items.Items = append(items.Items, newItem)
 
 	return c.JSON(http.StatusOK, res)
 }
