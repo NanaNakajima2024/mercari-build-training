@@ -20,7 +20,7 @@ type Response struct {
 }
 
 func root(c echo.Context) error {
-	res := Response{Message: "Hello,Nanachand!"}
+	res := Response{Message: "Hello, world!"}
 	return c.JSON(http.StatusOK, res)
 }
 
