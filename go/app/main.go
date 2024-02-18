@@ -6,22 +6,21 @@ import (
 	"os"
 	"path"
 	"strings"
-
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
+	"encoding/json"
+	"io/ioutil"
 )
-
 const (
 	ImgDir = "images"
 )
-
 type Response struct {
 	Message string `json:"message"`
 }
 
 func root(c echo.Context) error {
-	res := Response{Message: "Hello, world!"}
+	res := Response{Message: "Hello,Nanachand!"}
 	return c.JSON(http.StatusOK, res)
 }
 
@@ -34,6 +33,36 @@ func addItem(c echo.Context) error {
 	res := Response{Message: message}
 
 	return c.JSON(http.StatusOK, res)
+}
+
+// Item 構造体の定義
+type Item struct {
+	Name     string `json:"name"`
+	Category string `json:"category"`
+}
+
+// Items 構造体の定義
+type Items struct {
+	Items []Item `json:"items"`
+}
+
+func getItems(c echo.Context) error {
+        // item.jsonを読み込む
+	data, err := ioutil.ReadFile("./item.json")
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	var items Items
+        // 読み込んだdataをItemsという型に変換してitemsに格納
+	err = json.Unmarshal(data, &items)
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	return c.JSON(http.StatusOK, items)
 }
 
 func getImg(c echo.Context) error {
@@ -71,6 +100,7 @@ func main() {
 	// Routes
 	e.GET("/", root)
 	e.POST("/items", addItem)
+	e.GET("/items", getItems)
 	e.GET("/image/:imageFilename", getImg)
 
 
