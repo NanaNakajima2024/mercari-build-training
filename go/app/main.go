@@ -1,20 +1,22 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 	"strings"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
-	"encoding/json"
-	"io/ioutil"
 )
+
 const (
 	ImgDir = "images"
 )
+
 type Response struct {
 	Message string `json:"message"`
 }
@@ -30,12 +32,26 @@ func addItem(c echo.Context) error {
 	category := c.FormValue("category")
 	c.Logger().Infof("Receive item: %s", name)
 
-	message := fmt.Sprintf("item received: %s", category)
-	res := Response{Message: message}
-	//newItem := Item{Name: "New Item", Category: "New Category"}
-	//items.Items = append(items.Items, newItem)
+	data, err := ioutil.ReadFile("./item.json")
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
 
-	return c.JSON(http.StatusOK, res)
+	var items Items
+	// 読み込んだdataをItemsという型に変換してitemsに格納
+	err = json.Unmarshal(data, &items)
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	//newItemName := "New Item"
+	//newItemCategory := "New Category"
+	newItem := Item{Name: name, Category: category}
+	items.Items = append(items.Items, newItem)
+
+	return c.JSON(http.StatusOK, items)
 }
 
 // Item 構造体の定義
@@ -50,7 +66,7 @@ type Items struct {
 }
 
 func getItems(c echo.Context) error {
-        // item.jsonを読み込む
+	// item.jsonを読み込む
 	data, err := ioutil.ReadFile("./item.json")
 	if err != nil {
 		res := Response{Message: err.Error()}
@@ -58,7 +74,7 @@ func getItems(c echo.Context) error {
 	}
 
 	var items Items
-        // 読み込んだdataをItemsという型に変換してitemsに格納
+	// 読み込んだdataをItemsという型に変換してitemsに格納
 	err = json.Unmarshal(data, &items)
 	if err != nil {
 		res := Response{Message: err.Error()}
@@ -66,6 +82,7 @@ func getItems(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, items)
+
 }
 
 func getImg(c echo.Context) error {
@@ -105,7 +122,6 @@ func main() {
 	e.POST("/items", addItem)
 	e.GET("/items", getItems)
 	e.GET("/image/:imageFilename", getImg)
-
 
 	// Start server
 	e.Logger.Fatal(e.Start(":9000"))
