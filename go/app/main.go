@@ -32,7 +32,7 @@ func addItem(c echo.Context) error {
 	category := c.FormValue("category")
 	c.Logger().Infof("Receive item: %s", name)
 
-	data, err := ioutil.ReadFile("./item.json")
+	data, err := ioutil.ReadFile("./items.json")
 	if err != nil {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusBadRequest, res)
@@ -59,7 +59,7 @@ func addItem(c echo.Context) error {
 	}
 
 	// items.json に書き込んでいる
-	err = ioutil.WriteFile("./item.json", itemsJSON, 0644)
+	err = ioutil.WriteFile("./items.json", itemsJSON, 0644)
 	if err != nil {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusInternalServerError, res)
@@ -80,8 +80,8 @@ type Items struct {
 }
 
 func getItems(c echo.Context) error {
-	// item.jsonを読み込む
-	data, err := ioutil.ReadFile("./item.json")
+	// ./items.jsonを読み込む
+	data, err := ioutil.ReadFile("./items.json")
 	if err != nil {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusBadRequest, res)
