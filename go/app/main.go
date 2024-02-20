@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -26,10 +28,20 @@ func root(c echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
+// 読み込んだ画像ファイルを受け取り、ハッシュ化して返す
+func sha_256(target []byte) string {
+	h := sha256.New()
+	h.Write(target)
+	hashBytes := h.Sum(nil)
+	hashString := hex.EncodeToString(hashBytes)
+	return hashString
+}
+
 func addItem(c echo.Context) error {
 	// Get form data
 	name := c.FormValue("name")
 	category := c.FormValue("category")
+	image := c.FormValue("image")
 	c.Logger().Infof("Receive item: %s", name)
 
 	data, err := ioutil.ReadFile("./items.json")
@@ -37,6 +49,10 @@ func addItem(c echo.Context) error {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusBadRequest, res)
 	}
+
+	target, _ := ioutil.ReadFile(image)
+	hash := sha_256(target)
+	hashImage := hash + ".jpg"
 
 	var items Items
 	// 読み込んだdataをItemsという型に変換してitemsに格納
@@ -48,7 +64,7 @@ func addItem(c echo.Context) error {
 
 	//newItemName := "New Item"
 	//newItemCategory := "New Category"
-	newItem := Item{Name: name, Category: category}
+	newItem := Item{Name: name, Category: category, Image: hashImage}
 	items.Items = append(items.Items, newItem)
 
 	// GOのitemsをJSONに変更
@@ -72,6 +88,7 @@ func addItem(c echo.Context) error {
 type Item struct {
 	Name     string `json:"name"`
 	Category string `json:"category"`
+	Image    string `json:"image"`
 }
 
 // Items 構造体の定義
