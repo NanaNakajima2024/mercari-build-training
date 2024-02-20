@@ -51,6 +51,20 @@ func addItem(c echo.Context) error {
 	newItem := Item{Name: name, Category: category}
 	items.Items = append(items.Items, newItem)
 
+	// GOのitemsをJSONに変更
+	itemsJSON, err := json.Marshal(items)
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
+	// items.json に書き込んでいる
+	err = ioutil.WriteFile("./item.json", itemsJSON, 0644)
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusInternalServerError, res)
+	}
+
 	return c.JSON(http.StatusOK, items)
 }
 
