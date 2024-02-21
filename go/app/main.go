@@ -133,6 +133,39 @@ func getImg(c echo.Context) error {
 	return c.File(imgPath)
 }
 
+func getItemByID(c echo.Context) error {
+	id := c.Param("id")
+
+	data, err := ioutil.ReadFile("./items.json")
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	var items Items
+	// 読み込んだdataをItemsという型に変換してitemsに格納
+	err = json.Unmarshal(data, &items)
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	// 商品IDに一致する商品を検索
+	var item Item
+	for _, i := range items.Items {
+		if i.Id == id {
+			item = i
+			break
+		}
+	}
+
+	// 商品が見つからなかった場合は404エラーを返す
+	if item.Id == "" {
+		return c.String(http.StatusNotFound, "Item not found")
+	}
+
+	return c.JSON(http.StatusOK, item)
+}
+
 func main() {
 	e := echo.New()
 
@@ -155,6 +188,7 @@ func main() {
 	e.POST("/items", addItem)
 	e.GET("/items", getItems)
 	e.GET("/image/:imageFilename", getImg)
+	e.GET("/items/:id", getItemByID)
 
 	// Start server
 	e.Logger.Fatal(e.Start(":9000"))
