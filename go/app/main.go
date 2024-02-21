@@ -42,6 +42,7 @@ func addItem(c echo.Context) error {
 	name := c.FormValue("name")
 	category := c.FormValue("category")
 	image := c.FormValue("image")
+	id := c.FormValue("id")
 	c.Logger().Infof("Receive item: %s", name)
 
 	data, err := ioutil.ReadFile("./items.json")
@@ -64,7 +65,7 @@ func addItem(c echo.Context) error {
 
 	//newItemName := "New Item"
 	//newItemCategory := "New Category"
-	newItem := Item{Name: name, Category: category, Image: hashImage}
+	newItem := Item{Name: name, Category: category, Image: hashImage, Id: id}
 	items.Items = append(items.Items, newItem)
 
 	// GOのitemsをJSONに変更
@@ -89,6 +90,7 @@ type Item struct {
 	Name     string `json:"name"`
 	Category string `json:"category"`
 	Image    string `json:"image"`
+	Id       string `json:"id"`
 }
 
 // Items 構造体の定義
