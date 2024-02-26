@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -99,23 +101,32 @@ type Items struct {
 }
 
 func getItems(c echo.Context) error {
-	// ./items.jsonを読み込む
-	data, err := ioutil.ReadFile("./items.json")
+	db, err := sql.Open("sqlite3", "/Users/nakajimanana/mercari-build-training/go/mercari.sqlite3")
 	if err != nil {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
-	var items Items
-	// 読み込んだdataをItemsという型に変換してitemsに格納
-	err = json.Unmarshal(data, &items)
+	defer db.Close()
+
+	rows, err := db.Query("SELECT * FROM items")
 	if err != nil {
-		res := Response{Message: err.Error()}
-		return c.JSON(http.StatusBadRequest, res)
+		c.Logger().Debugf("Image not found: %s", "aaa")
+		return err
+	}
+	defer rows.Close()
+	var items []Item
+	for rows.Next() {
+		var item Item
+		err := rows.Scan(&item.Id, &item.Name, &item.Category, &item.Image)
+		if err != nil {
+			res := Response{Message: err.Error()}
+			return c.JSON(http.StatusBadRequest, res)
+		}
+		items = append(items, item)
 	}
 
-	return c.JSON(http.StatusOK, items)
-
+	return c.JSON(http.StatusOK, Items{Items: items})
 }
 
 func getImg(c echo.Context) error {
