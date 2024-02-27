@@ -158,6 +158,41 @@ func getItemByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, item)
 }
 
+func searchItems(c echo.Context) error {
+
+	keyword := c.QueryParam("keyword")
+
+	// データベースに接続
+	db, err := sql.Open("sqlite3", "/Users/nakajimanana/mercari-build-training/go/mercari.sqlite3")
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	defer db.Close()
+
+	//検索クエリを作成
+	query := "SELECT id, name, category, image_name FROM items WHERE name LIKE '%' || ? || '%'"
+
+	rows, err := db.Query(query, keyword)
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	defer rows.Close()
+	var items []Item
+	for rows.Next() {
+		var item Item
+		err := rows.Scan(&item.Id, &item.Name, &item.Category, &item.Image)
+		if err != nil {
+			res := Response{Message: err.Error()}
+			return c.JSON(http.StatusBadRequest, res)
+		}
+		items = append(items, item)
+	}
+
+	return c.JSON(http.StatusOK, Items{Items: items})
+}
+
 func main() {
 	e := echo.New()
 
@@ -180,6 +215,7 @@ func main() {
 	e.POST("/items", addItem)
 	e.GET("/items", getItems)
 	e.GET("/image/:imageFilename", getImg)
+	e.GET("/search", searchItems)
 	e.GET("/items/:id", getItemByID)
 
 	// Start server
