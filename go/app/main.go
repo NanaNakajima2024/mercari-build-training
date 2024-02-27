@@ -40,6 +40,13 @@ func sha_256(target []byte) string {
 }
 
 func addItem(c echo.Context) error {
+	db, err := sql.Open("sqlite3", "/Users/nakajimanana/mercari-build-training/go/mercari.sqlite3")
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	defer db.Close()
 	// Get form data
 	name := c.FormValue("name")
 	category := c.FormValue("category")
@@ -47,44 +54,18 @@ func addItem(c echo.Context) error {
 	id := c.FormValue("id")
 	c.Logger().Infof("Receive item: %s", name)
 
-	data, err := ioutil.ReadFile("./items.json")
-	if err != nil {
-		res := Response{Message: err.Error()}
-		return c.JSON(http.StatusBadRequest, res)
-	}
-
 	target, _ := ioutil.ReadFile(image)
 	hash := sha_256(target)
 	hashImage := hash + ".jpg"
 
-	var items Items
-	// 読み込んだdataをItemsという型に変換してitemsに格納
-	err = json.Unmarshal(data, &items)
+	insertQuery := "INSERT INTO items(name, category,image_name,id) VALUES(?, ?, ?, ?)"
+	_, err = db.Exec(insertQuery, name, category, hashImage, id)
 	if err != nil {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
-	//newItemName := "New Item"
-	//newItemCategory := "New Category"
-	newItem := Item{Name: name, Category: category, Image: hashImage, Id: id}
-	items.Items = append(items.Items, newItem)
-
-	// GOのitemsをJSONに変更
-	itemsJSON, err := json.Marshal(items)
-	if err != nil {
-		res := Response{Message: err.Error()}
-		return c.JSON(http.StatusInternalServerError, res)
-	}
-
-	// items.json に書き込んでいる
-	err = ioutil.WriteFile("./items.json", itemsJSON, 0644)
-	if err != nil {
-		res := Response{Message: err.Error()}
-		return c.JSON(http.StatusInternalServerError, res)
-	}
-
-	return c.JSON(http.StatusOK, items)
+	return c.JSON(http.StatusOK, "success")
 }
 
 // Item 構造体の定義
