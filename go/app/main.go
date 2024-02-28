@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 const (
@@ -38,6 +40,13 @@ func sha_256(target []byte) string {
 }
 
 func addItem(c echo.Context) error {
+	db, err := sql.Open("sqlite3", "/Users/nakajimanana/mercari-build-training/go/mercari.sqlite3")
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+
+	defer db.Close()
 	// Get form data
 	name := c.FormValue("name")
 	category := c.FormValue("category")
@@ -45,44 +54,18 @@ func addItem(c echo.Context) error {
 	id := c.FormValue("id")
 	c.Logger().Infof("Receive item: %s", name)
 
-	data, err := ioutil.ReadFile("./items.json")
-	if err != nil {
-		res := Response{Message: err.Error()}
-		return c.JSON(http.StatusBadRequest, res)
-	}
-
 	target, _ := ioutil.ReadFile(image)
 	hash := sha_256(target)
 	hashImage := hash + ".jpg"
 
-	var items Items
-	// 読み込んだdataをItemsという型に変換してitemsに格納
-	err = json.Unmarshal(data, &items)
+	insertQuery := "INSERT INTO items(name, category,image_name,id) VALUES(?, ?, ?, ?)"
+	_, err = db.Exec(insertQuery, name, category, hashImage, id)
 	if err != nil {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
-	//newItemName := "New Item"
-	//newItemCategory := "New Category"
-	newItem := Item{Name: name, Category: category, Image: hashImage, Id: id}
-	items.Items = append(items.Items, newItem)
-
-	// GOのitemsをJSONに変更
-	itemsJSON, err := json.Marshal(items)
-	if err != nil {
-		res := Response{Message: err.Error()}
-		return c.JSON(http.StatusInternalServerError, res)
-	}
-
-	// items.json に書き込んでいる
-	err = ioutil.WriteFile("./items.json", itemsJSON, 0644)
-	if err != nil {
-		res := Response{Message: err.Error()}
-		return c.JSON(http.StatusInternalServerError, res)
-	}
-
-	return c.JSON(http.StatusOK, items)
+	return c.JSON(http.StatusOK, "success")
 }
 
 // Item 構造体の定義
@@ -99,23 +82,37 @@ type Items struct {
 }
 
 func getItems(c echo.Context) error {
-	// ./items.jsonを読み込む
-	data, err := ioutil.ReadFile("./items.json")
+	db, err := sql.Open("sqlite3", "/Users/nakajimanana/mercari-build-training/go/mercari.sqlite3")
 	if err != nil {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusBadRequest, res)
 	}
 
-	var items Items
-	// 読み込んだdataをItemsという型に変換してitemsに格納
-	err = json.Unmarshal(data, &items)
+	defer db.Close()
+
+	// クエリの実行
+	rows, err := db.Query(`
+		SELECT i.id, i.name AS item_name, c.name AS category_name, i.image_name
+		FROM items AS i
+		JOIN categories AS c ON i.category_id = c.id
+	`)
 	if err != nil {
 		res := Response{Message: err.Error()}
 		return c.JSON(http.StatusBadRequest, res)
 	}
+	defer rows.Close()
+	var items []Item
+	for rows.Next() {
+		var item Item
+		err := rows.Scan(&item.Id, &item.Name, &item.Category, &item.Image)
+		if err != nil {
+			res := Response{Message: err.Error()}
+			return c.JSON(http.StatusBadRequest, res)
+		}
+		items = append(items, item)
+	}
 
-	return c.JSON(http.StatusOK, items)
-
+	return c.JSON(http.StatusOK, Items{Items: items})
 }
 
 func getImg(c echo.Context) error {
@@ -166,6 +163,41 @@ func getItemByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, item)
 }
 
+func searchItems(c echo.Context) error {
+
+	keyword := c.QueryParam("keyword")
+
+	// データベースに接続
+	db, err := sql.Open("sqlite3", "/Users/nakajimanana/mercari-build-training/go/mercari.sqlite3")
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	defer db.Close()
+
+	//検索クエリを作成
+	query := "SELECT id, name, category, image_name FROM items WHERE name LIKE '%' || ? || '%'"
+
+	rows, err := db.Query(query, keyword)
+	if err != nil {
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
+	}
+	defer rows.Close()
+	var items []Item
+	for rows.Next() {
+		var item Item
+		err := rows.Scan(&item.Id, &item.Name, &item.Category, &item.Image)
+		if err != nil {
+			res := Response{Message: err.Error()}
+			return c.JSON(http.StatusBadRequest, res)
+		}
+		items = append(items, item)
+	}
+
+	return c.JSON(http.StatusOK, Items{Items: items})
+}
+
 func main() {
 	e := echo.New()
 
@@ -188,6 +220,7 @@ func main() {
 	e.POST("/items", addItem)
 	e.GET("/items", getItems)
 	e.GET("/image/:imageFilename", getImg)
+	e.GET("/search", searchItems)
 	e.GET("/items/:id", getItemByID)
 
 	// Start server
