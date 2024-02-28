@@ -90,10 +90,15 @@ func getItems(c echo.Context) error {
 
 	defer db.Close()
 
-	rows, err := db.Query("SELECT * FROM items")
+	// クエリの実行
+	rows, err := db.Query(`
+		SELECT i.id, i.name AS item_name, c.name AS category_name, i.image_name
+		FROM items AS i
+		JOIN categories AS c ON i.category_id = c.id
+	`)
 	if err != nil {
-		c.Logger().Debugf("Image not found: %s", "aaa")
-		return err
+		res := Response{Message: err.Error()}
+		return c.JSON(http.StatusBadRequest, res)
 	}
 	defer rows.Close()
 	var items []Item
